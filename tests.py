@@ -26,3 +26,4 @@ def test_parse_cmd():
 def test_exec_cmd():
     assert interpreter.exec_cmd("4") == 4
     assert interpreter.exec_cmd("(+ 2 2)") == 4
+    assert interpreter.exec_cmd("(+ (+ 1 1) 2)") == 4

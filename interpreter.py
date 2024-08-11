@@ -45,8 +45,8 @@ def parse_cmd(command) -> (str, list):
     (+ 2 2) -> "+", [2 ,2]
     """
     func_token = get_function_token(command)
-    args = []
-    return func_token, []
+    args = get_args(command)
+    return func_token, args
 
 
 def exec_cmd(command):
