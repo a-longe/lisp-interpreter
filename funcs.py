@@ -24,5 +24,10 @@ def div(*args):
     return quot
 
 
+def let(lo_assignments, body):
+    assignments_map = {}
+    return lo_assignments
+
+
 def convert_lisp_func_to_py(token):
-    return {"+": add, "-": sub, "*": mult, "/": div}[token]
+    return {"+": add, "-": sub, "*": mult, "/": div, "let": let}[token]
