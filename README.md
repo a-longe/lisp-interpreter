@@ -40,7 +40,66 @@ they use special syntax to define values.
 Here is how the chain of logic should work:
 A Lisp expression is passed to the Interpreter.
 The function is determined and arguments' parsed.
-These arguments are passed to the corrosponding python function that is assosiated
+These arguments are passed to the coresponding python function that is assosiated
 with the lisp one.
 The python function decides what to do with these arguments, whether further parsing them
 or passing them back to the Interpreter
+
+
+# Lisp Interpreter in Rust
+
+## AST
+the AST or abstract syntax tree is a non-primative data structure that repersents the program
+in a way that separates expressions into their own node.
+
+Each node will either be a value or a procedure with arguments, these arguments are acctually other AST
+nodes and can either be another procedure with arguments or a leaf node with just a value, the
+basic structure will be something like so:
+ASTNode:
+  func: String
+  lo_args: \[ASTNode]
+
+## Interpreter Flow
+The Interpreter will function in an order like so, first it will read from a file the whole program
+Next it will parse the program into an AST
+Finally the program will recursively simplify the program from the bottom up until the whole program
+returns a final value.
+
+## Notes
+For simple programs that use basic functions like math (+, -, /, *) this is an easy problem, the ast for an simple program
+(* (+ 1 1) 2)
+    (*)
+    / \
+  (+) (2)
+  / \
+ (1)(1)
+
+The thing that makes it more complicated are the let and lambda expressions
+the let block works like so (let ([var1, val1], [var2, val2] ...) (body))
+These declarations only apply to the body block in the let statement and it will evaluate the same way that the body block does but with any variables held
+in the let block replaced with their value.
+
+So my plan to deal with these is during the runtime, as the program executes the execute function will take in a hashmap that maps a token to a value, every time
+the execution function reaches a let block, it will read the declarations and add them as well as the previous hashmap to a new hashmap, to be passed to the execute
+function on the body block
+
+{x: 2}
+(let ([y 4]) (+ x y))
+{x: 2, y: 4}
+(+ x y)
+(+ 2 4)
+(6)
+
+So the execute function will looks something like this
+ASTNode.execute(self, declarations) -> _ {
+  func = funcs.lisp_to_rust_func(self, &declarations)
+  return func(self)
+}
+
+lisp_to_rust_func(ASTNode, declarations) -> _ {
+  switch ASTNode.func {
+    "+" => add
+    "-" => sub
+    ...
+  }
+}
