@@ -1,5 +1,3 @@
-use core::panic;
-
 pub fn get_string_between_parenteses(starting_parentheses_index: usize, s: &str) -> &str {
     let mut opening_parens = 0;
     for (i, c) in s[starting_parentheses_index..].chars().enumerate() {

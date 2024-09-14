@@ -1,2 +1,5 @@
 python/__pycache__/
 rust/target/
+rust/target/*
+rust/.history/
+**/target/

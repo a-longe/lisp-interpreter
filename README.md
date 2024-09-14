@@ -92,7 +92,7 @@ function on the body block
 
 So the execute function will looks something like this
 ASTNode.execute(self, declarations) -> _ {
-  func = funcs.lisp_to_rust_func(self, &declarations)
+  func = funcs.lisp_to_rust_func(self)
   return func(self)
 }
 
@@ -103,3 +103,27 @@ lisp_to_rust_func(ASTNode, declarations) -> _ {
     ...
   }
 }
+
+## On Types
+The Ast type structure will look something like this:
+
+AST Node:
+  enum Expression:
+    Procedure:
+      func_token(String),
+      args: Vec<AST Node> |
+    enum Value:
+      Number
+      String
+      ...
+    Token
+    Assingments
+
+  declarations
+
+## Funcs
+add and multiplication are self explanitary
+but subtraction with multiple values and other functions take a bit
+more thought.
+sub = a1 - a2 - a3 - a4 ...
+div = ((a1 / a2) / a3) ...
