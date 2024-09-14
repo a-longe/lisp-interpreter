@@ -1,4 +1,4 @@
-use crate::ast::{self, create_node, get_empty_declarations, Procedure, Value};
+use crate::ast::{self, create_node, get_empty_declarations, Declarations, Procedure, Value};
 #[cfg(test)]
 use crate::parse;
 #[test]
@@ -111,16 +111,31 @@ fn divide_by_zero_ast() {
     assert_eq!(node.execute().err().unwrap(), ast::Error{ reason:"division by zero".to_string()});
 }
 
-//#[test]
-//fn nested_ast() {
-//    let proc1 = Procedure {
-//        func_token: "+".to_string(),
-//        args: vec![create_val_node(Value::Number(1.0)), create_val_node(Value::Number(1.0))]
-//    };
-//    let proc2 = Procedure {
-//        func_token: "+".to_string(),
-//        args: vec![create_val_node(Value::Number(2.0)), ast::create_node(ast::Expr::Procedure(proc1), get_empty_declarations())]
-//    };
-//    let node = ast::create_node(ast::Expr::Procedure(proc2), get_empty_declarations());
-//    assert_eq!(node.execute().ok().unwrap(), Value::Number(4.0));
-//}
+#[test]
+fn nested_ast() {
+    /*
+    +
+   / \
+  2  +
+    / \
+   2   2
+    */
+    let proc1 = Procedure {
+        func_token: "+".to_string(),
+        args: vec![create_val_node(Value::Number(1.0)), create_val_node(Value::Number(1.0))]
+    };
+    let proc2 = Procedure {
+        func_token: "+".to_string(),
+        args: vec![create_val_node(Value::Number(2.0)), ast::create_node(ast::Expr::Procedure(proc1), get_empty_declarations())]
+    };
+    let node = ast::create_node(ast::Expr::Procedure(proc2), get_empty_declarations());
+    assert_eq!(node.execute().ok().unwrap(), Value::Number(4.0));
+}
+
+#[test]
+fn basic_token_as_number_ast() {
+    let mut declr = get_empty_declarations();
+    declr.data.insert("x".to_string(), Value::Number(10.0));
+    let node = ast::create_node(ast::Expr::Token("x".to_string()), declr);
+    assert_eq!(node.execute().ok().unwrap(), Value::Number(10.0))
+}

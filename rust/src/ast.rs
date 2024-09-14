@@ -42,7 +42,7 @@ pub struct Error {
 
 #[derive(Clone)]
 pub struct Declarations {
-data: HashMap<String, Value>
+    pub data: HashMap<String, Value>
 }
 impl Declarations {
     fn get_value(&self, token: String) -> Value {

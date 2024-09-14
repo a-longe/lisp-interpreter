@@ -1,0 +1,41 @@
+use std::collections::HashMap;
+use std::any::Any;
+#[derive(Clone)]
+struct Procedure {}
+
+#[derive(Clone)]
+enum Value {}
+
+#[derive(Clone)]
+enum Expr {
+    Procedure(Procedure),
+    Value(Value)
+}
+
+#[derive(Clone)]
+pub struct Node {
+    func_symbol: String,
+    args: Vec<Expr>,
+    declarations: Declarations
+}
+
+#[derive(Debug)]
+enum Error {
+    Reason(String)
+}
+
+#[derive(Clone)]
+struct Declarations {
+    data: HashMap<String, Expr>
+}
+
+#[allow(dead_code)]
+impl ASTNode {
+    pub fn is_leaf(&self) -> bool{
+        return self.children_nodes.len() < 1;
+    }
+
+    pub fn execute(&self) -> Expr {
+        Expr::Number(0.0)
+    }
+}

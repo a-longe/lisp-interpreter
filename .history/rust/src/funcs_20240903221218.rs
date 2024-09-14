@@ -1,0 +1,1 @@
+pub fn lisp_func_token_to_rust(lisp_func_token: String) -> Fn
