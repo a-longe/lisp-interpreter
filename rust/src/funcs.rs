@@ -32,6 +32,7 @@ fn sub(node: &Node) -> Result<Value, ast::Error> {
             sum -= num;
         }
     }
+    if proc.args.len() == 1 { return Ok(Value::Number(-sum));}
     Ok(Value::Number(sum))
 }
 
@@ -67,6 +68,7 @@ fn div(node: &Node) -> Result<Value, ast::Error> {
         }
         else { quotient /= num; }
     }
+    if proc.args.len() == 1 { return Ok(Value::Number(1.0/quotient))}
     return Ok(Value::Number(quotient));
 }
 

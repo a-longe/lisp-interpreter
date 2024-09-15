@@ -1,34 +1,48 @@
-use crate::ast::{self, create_node, get_empty_declarations, Declarations, Procedure, Value};
+#[allow(dead_code, unused_imports, dead_code)]
+use crate::ast::{self, get_empty_declarations, create_val_node, Procedure, Value};
+use crate::{ast::Node, parse::{self, get_tokens}};
 #[cfg(test)]
-use crate::parse;
 #[test]
 fn passing_test() {
     assert_eq!(1, 1)
 }
+
 #[test]
-fn baisc_parse_get_string_in_parens() {
-    assert_eq!(
-        parse::get_string_between_parenteses(0, "(+ 1 1)"),
-        "(+ 1 1)"
-    )
-}
-#[test]
-fn nested_parse_get_string_in_parens() {
-    assert_eq!(
-        parse::get_string_between_parenteses(3, "(+ (+ 1 1) 2)"),
-        "(+ 1 1)"
-    )
-}
-#[test]
-fn double_nested_parse_get_string_in_parens() {
-    assert_eq!(
-        parse::get_string_between_parenteses(11, "(+ (+ 1 1) (+ 2 (* 2 2) 2))"),
-        "(+ 2 (* 2 2) 2)"
-    )
+fn basic_get_tokens() {
+    assert_eq!(parse::get_tokens("(+ 1 1)"),
+        vec!["(".to_string(),
+            "+".to_string(),
+            "1".to_string(),
+            "1".to_string(),
+            ")".to_string()])
 }
 
-fn create_val_node(val: Value) -> ast::Node {
-    ast::create_node(ast::Expr::Value(val), ast::get_empty_declarations())
+#[test]
+fn basic_string_to_node() {
+    let ast = ast::create_ast("(+ 1 1)");
+    assert_eq!(ast.execute().ok().unwrap(), Value::Number(2.0))
+}
+
+#[test]
+fn baisc_parse_get_closing_parentese_i() {
+    assert_eq!(
+        parse::get_closing_paren_index(0, get_tokens("(+ 1 1)")),
+        4
+    )
+}
+#[test]
+fn nested_inner_parse_get_closing_paren_index() {
+    assert_eq!(
+        parse::get_closing_paren_index(2, get_tokens("(+ (+ 1 1) 2)")),
+        6
+    )
+}
+#[test]
+fn nested_outer_parse_get_closing_paren_index() {
+    assert_eq!(
+        parse::get_closing_paren_index(0, get_tokens("(+ (+ 1 1) 2)")),
+        8
+    )
 }
 
 #[test]
@@ -48,6 +62,15 @@ fn adding_ast() {
 }
 
 #[test]
+fn adding_over_two_numbers_ast() {
+    let proc = Procedure {
+        func_token: "+".to_string(),
+        args: vec![create_val_node(Value::Number(1.0)), create_val_node(Value::Number(1.0)), create_val_node(Value::Number(2.0))]
+    };
+    let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
+    assert_eq!(node.execute().ok().unwrap(), Value::Number(4.0));
+}
+#[test]
 fn subbing_ast() {
     let proc = Procedure {
         func_token: "-".to_string(),
@@ -57,10 +80,28 @@ fn subbing_ast() {
     assert_eq!(node.execute().ok().unwrap(), Value::Number(2.0));
 }
 #[test]
+fn subbing_over_two_numbers_ast() {
+    let proc = Procedure {
+        func_token: "-".to_string(),
+        args: vec![create_val_node(Value::Number(3.0)), create_val_node(Value::Number(1.0)), create_val_node(Value::Number(0.5))]
+    };
+    let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
+    assert_eq!(node.execute().ok().unwrap(), Value::Number(1.5));
+}
+#[test]
+fn subbing_only_one_number_ast() {
+    let proc = Procedure {
+        func_token: "-".to_string(),
+        args: vec![create_val_node(Value::Number(3.0))]
+    };
+    let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
+    assert_eq!(node.execute().ok().unwrap(), Value::Number(-3.0));
+}
+#[test]
 fn multing_by_one_ast() {
     let proc = Procedure {
         func_token: "*".to_string(),
-    args: vec![create_val_node(Value::Number(1.0)), create_val_node(Value::Number(2.0))]
+        args: vec![create_val_node(Value::Number(1.0)), create_val_node(Value::Number(2.0))]
     };
     let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
     assert_eq!(node.execute().ok().unwrap(), Value::Number(2.0));
@@ -69,7 +110,7 @@ fn multing_by_one_ast() {
 fn multing_ast() {
     let proc = Procedure {
         func_token: "*".to_string(),
-    args: vec![create_val_node(Value::Number(2.0)), create_val_node(Value::Number(2.0))]
+        args: vec![create_val_node(Value::Number(2.0)), create_val_node(Value::Number(2.0))]
     };
     let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
     assert_eq!(node.execute().ok().unwrap(), Value::Number(4.0));
@@ -78,7 +119,7 @@ fn multing_ast() {
 fn multing_by_zero_ast() {
     let proc = Procedure {
         func_token: "*".to_string(),
-    args: vec![create_val_node(Value::Number(2.0)), create_val_node(Value::Number(0.0))]
+        args: vec![create_val_node(Value::Number(2.0)), create_val_node(Value::Number(0.0))]
     };
     let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
     assert_eq!(node.execute().ok().unwrap(), Value::Number(0.0));
@@ -87,7 +128,7 @@ fn multing_by_zero_ast() {
 fn dividing_ast() {
     let proc = Procedure {
         func_token: "/".to_string(),
-    args: vec![create_val_node(Value::Number(2.0)), create_val_node(Value::Number(2.0))]
+        args: vec![create_val_node(Value::Number(2.0)), create_val_node(Value::Number(2.0))]
     };
     let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
     assert_eq!(node.execute().ok().unwrap(), Value::Number(1.0));
@@ -96,7 +137,7 @@ fn dividing_ast() {
 fn factional_dividing_ast() {
     let proc = Procedure {
         func_token: "/".to_string(),
-    args: vec![create_val_node(Value::Number(5.0)), create_val_node(Value::Number(2.0))]
+        args: vec![create_val_node(Value::Number(5.0)), create_val_node(Value::Number(2.0))]
     };
     let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
     assert_eq!(node.execute().ok().unwrap(), Value::Number(2.5));
@@ -105,20 +146,47 @@ fn factional_dividing_ast() {
 fn divide_by_zero_ast() {
     let proc = Procedure {
         func_token: "/".to_string(),
-    args: vec![create_val_node(Value::Number(5.0)), create_val_node(Value::Number(0.0))]
+        args: vec![create_val_node(Value::Number(5.0)), create_val_node(Value::Number(0.0))]
     };
     let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
     assert_eq!(node.execute().err().unwrap(), ast::Error{ reason:"division by zero".to_string()});
+}
+#[test]
+fn dividing_multiple_numbers_ast() {
+    let proc = Procedure {
+        func_token: "/".to_string(),
+        args: vec![create_val_node(Value::Number(8.0)), create_val_node(Value::Number(2.0)), create_val_node(Value::Number(2.0))]
+    };
+    let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
+    assert_eq!(node.execute().ok().unwrap(), Value::Number(2.0));
+}
+#[test]
+fn dividing_by_fraction_ast() {
+    let proc = Procedure {
+        func_token: "/".to_string(),
+        args: vec![create_val_node(Value::Number(2.0)), create_val_node(Value::Number(0.1))]
+    };
+    let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
+    assert_eq!(node.execute().ok().unwrap(), Value::Number(20.0));
+}
+#[test]
+fn dividing_with_only_one_number_ast() {
+    let proc = Procedure {
+        func_token: "/".to_string(),
+        args: vec![create_val_node(Value::Number(2.0))]
+    };
+    let node = ast::create_node(ast::Expr::Procedure(proc), get_empty_declarations());
+    assert_eq!(node.execute().ok().unwrap(), Value::Number(0.5));
 }
 
 #[test]
 fn nested_ast() {
     /*
     +
-   / \
-  2  +
     / \
-   2   2
+    2  +
+    / \
+    2   2
     */
     let proc1 = Procedure {
         func_token: "+".to_string(),
