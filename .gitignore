@@ -3,3 +3,5 @@ rust/target/
 rust/target/*
 rust/.history/
 **/target/
+.history/
+.idea/

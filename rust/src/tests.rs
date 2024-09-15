@@ -1,6 +1,6 @@
-#[allow(dead_code, unused_imports, dead_code)]
+#![allow(unused_imports, dead_code)]
 use crate::ast::{self, get_empty_declarations, create_val_node, Procedure, Value};
-use crate::{ast::Node, parse::{self, get_tokens}};
+use crate::{ast::{Expr, Node}, parse::{self, get_tokens}};
 #[cfg(test)]
 #[test]
 fn passing_test() {
@@ -19,8 +19,13 @@ fn basic_get_tokens() {
 
 #[test]
 fn basic_string_to_node() {
-    let ast = ast::create_ast("(+ 1 1)");
+    let ast = ast::create_ast(get_tokens("(+ 1 1)"));
     assert_eq!(ast.execute().ok().unwrap(), Value::Number(2.0))
+}
+#[test]
+fn nested_string_to_node() {
+    let ast = ast::create_ast(get_tokens("(+ (* 1 2) 2)"));
+    assert_eq!(ast.execute().ok().unwrap(), Value::Number(4.0))
 }
 
 #[test]
@@ -206,4 +211,25 @@ fn basic_token_as_number_ast() {
     declr.data.insert("x".to_string(), Value::Number(10.0));
     let node = ast::create_node(ast::Expr::Token("x".to_string()), declr);
     assert_eq!(node.execute().ok().unwrap(), Value::Number(10.0))
+}
+#[test]
+fn get_expr_from_string_number_val() {
+    assert_eq!(ast::get_expr_from_str("2"), Expr::Value(Value::Number(2.0)))
+}
+#[test]
+fn get_expr_from_string_string_val() {
+    assert_eq!(ast::get_expr_from_str("\"Hello, World!\""), Expr::Value(Value::String("Hello, World!".to_string())))
+}
+#[test]
+fn get_expr_from_string_token() {
+    assert_eq!(ast::get_expr_from_str("lo_x"), Expr::Token("lo_x".to_string()))
+}
+#[test]
+fn get_expr_from_string_procedure() {
+    assert_eq!(ast::get_expr_from_str("(+ 1 1)"),
+        Expr::Procedure(Procedure {
+            func_token: "+".to_string(),
+            args: vec![
+            create_val_node(Value::Number(1.0)),
+            create_val_node(Value::Number(1.0))]}))
 }
