@@ -1,23 +1,18 @@
 #![allow(unused_imports, dead_code)]
 use std::collections::HashMap;
-use crate::{funcs, parse::{self, get_tokens}};
+use crate::{funcs::{self, symbol_to_function}, parse::{self, get_tokens, split_tokens_into_args}};
 
 #[derive(Clone, Debug)]
 pub struct ASTNode {
     pub pos: (i32, i32),
     pub expr: Box<Expression>,
-    pub declarations: Declarations
+    pub declarations: Box<Declarations>
 }
 
-// Future Challenge: implement the deinition and let expression using only
-// the lambda functionality like racket does.
 #[derive(Clone, Debug)]
 pub enum Expression {
     Literal(Literal),
-    Definition(Definition),
-    Lambda(Lambda),
-    IfElse(IfElse),
-    Let(Let)
+    ProcedureCall(ProcedureCall),
 }
 
 #[derive(Clone, Debug)]
@@ -31,7 +26,8 @@ pub enum Literal {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Number(Number),
-    Boolean(Boolean)
+    Boolean(Boolean),
+    Symbol(Symbol)
     // more to add
 }
 
@@ -40,7 +36,7 @@ pub struct Number {
     pub value: f64
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Symbol {
     pub value: String
 }
@@ -57,32 +53,6 @@ pub struct ProcedureCall {
 }
 
 #[derive(Clone, Debug)]
-pub struct Definition {
-    name: Symbol,
-    value: ASTNode
-}
-
-#[derive(Clone, Debug)]
-pub struct Lambda {
-    params: Vec<Symbol>,
-    function: ASTNode,
-    body: Vec<ASTNode>
-}
-
-#[derive(Clone, Debug)]
-pub struct IfElse {
-    condition: ASTNode,
-    then_branch: ASTNode,
-    else_branch: ASTNode
-}
-
-#[derive(Clone, Debug)]
-pub struct Let {
-    bindings: Vec<Definition>,
-    body: Vec<ASTNode>
-}
-
-#[derive(Clone, Debug)]
 pub struct Declarations {
     pub declr: HashMap<Symbol, Value>
 }
@@ -96,7 +66,8 @@ pub struct Declarations {
 impl ASTNode {
     pub fn execute(&self) -> Value {
         match *self.expr {
-            Expression::Literal(_) => self.exec_literal(),
+            Expression::Literal(_)  => self.exec_literal(),
+            Expression::ProcedureCall(_) => self.exec_proc(),
             _ => panic!("unsupported expression type")
         }
     }
@@ -107,20 +78,83 @@ impl ASTNode {
                 match l {
                     Literal::Number(v) => {Value::Number(v)},
                     Literal::Boolean(v) => {Value::Boolean(v)},
+                    Literal::Symbol(v) => {Value::Symbol(v)}
                     _ => panic!("unsuported literal type")
                 }
             },
-            _ => panic!("Pattern matching error")
+            _ => panic!("Pattern matching error in execute method on ASTNode")
         }
     }
 
-    pub fn simple_node(expr: Expression) -> ASTNode {
-        return ASTNode {pos: (0, 0),
-                        expr: Box::new(expr),
-                        declarations: Declarations {declr: HashMap::new()}}
+    pub fn exec_proc(&self) -> Value {
+        match *self.expr.clone() {
+            Expression::ProcedureCall(p) => {
+                let operator_symbol = p.operator.execute();
+                match operator_symbol {
+                    Value::Symbol(s) => {
+                        return symbol_to_function(s.value)(p.operands).expect("test");
+                    }
+                    _ => panic!("operator expression does not return a symbol")
+                }
+            },
+            _ => panic!("Pattern matching error in execute method on ASTNode")
+        }
+    }
+
+}
+
+impl Declarations {
+    pub fn new() -> Declarations { Declarations {declr: HashMap::new()} }
+}
+
+pub fn create_ast(tokens: Vec<String>) -> ASTNode {
+    ASTNode {pos: (0,0),
+        expr: Box::new(create_ast_node_recursive(Box::new(Declarations::new()), tokens)),
+        declarations: Box::new(Declarations::new())
     }
 }
 
-pub fn create_ast(tokens: Vec<String>) {}
+fn create_ast_node_recursive(declarations: Box<Declarations>, tokens: Vec<String>) -> Expression {
+    let expr: Expression;
+    if tokens[0] != "(" {
+        // must be literal
 
-fn create_ast_node_recursive(parent: &ASTNode, tokens: Vec<String>) {}
+        if tokens[0] == "#true" || tokens[0] == "#false" { // boolean literal
+            let val: bool;
+            if tokens[0] == "#true" { val = true; }
+            else { val = false; }
+            expr = Expression::Literal(Literal::Boolean(
+                Boolean { value: val }));
+        }
+
+        else if tokens[0].parse::<f64>().is_ok() { // number literal
+            expr = Expression::Literal(Literal::Number(
+                Number { value: tokens[0].parse::<f64>().unwrap()}));
+        }
+
+        else { // symbol
+            expr = Expression::Literal(Literal::Symbol(
+                Symbol { value: tokens[0].clone() }))
+        }
+
+    }
+    else {
+        // must be proc call
+        let arguments = split_tokens_into_args(tokens);
+        let operator: ASTNode = ASTNode {pos: (0,0),
+            expr: Box::new(create_ast_node_recursive(declarations.clone(), arguments[0].clone())),
+            declarations: declarations.clone()};
+        let mut operands:Vec<ASTNode> = Vec::new();
+        for i in 1..arguments.len() {
+            operands.push( ASTNode { pos: (0,0),
+                expr: Box::new(create_ast_node_recursive(declarations.clone(), arguments[i].clone())),
+                declarations: declarations.clone()});
+        }
+        expr = Expression::ProcedureCall(ProcedureCall {
+            operator,
+            operands
+        })
+    }
+    return expr;
+}
+

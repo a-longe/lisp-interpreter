@@ -1,17 +1,17 @@
-use crate::ast;
+use crate::ast::{self, ASTNode, Number, Value};
 use crate::racketError::{Error, create_error};
 
-/*
-fn add(&self, operands: Vec<ast::Expression>) -> Result<ast::Number, Error> {
-    let sum: f64 = 0.0;
+fn add(operands: Vec<ASTNode>) -> Option<Value> {
+    let mut sum: f64 = 0.0;
     for expr in operands {
         match expr.execute() {
-            ast::Number{value: a} => sum += a,
-            _ => return Err(create_error("cannot add non-numbers"))
+            Value::Number(Number{value: n}) => sum += n,
+            _ => return None
         }
     }
-    return Ok(ast::Number{value: sum});
+    return Some(Value::Number(Number { value: sum }));
 }
+/*
 fn sub(&self, operands: Vec<ast::Expression>) -> Result<ast::Number, Error> {
     let sum: f64 = 0.0;
     match expr.execute() {
@@ -108,12 +108,12 @@ fn sub(&self, operands: Vec<ast::Expression>) -> Result<ast::Number, Error> {
 //    };
 //    return proc.args[1].execute();
 //}
-//pub fn lisp_func_token_to_rust(lisp_func_token: String) -> impl Fn(&Node) -> Result<Value, ast::Error> {
-//    match lisp_func_token.as_str() {
-//        "+" => add,
-//        "-" => sub,
-//        "*" => mult,
-//        "/" => div,
-//        _ => panic!("not a valid function")
-//    }
-//}
+pub fn symbol_to_function(lisp_func_token: String) -> impl Fn(Vec<ASTNode>) -> Option<Value> {
+    match lisp_func_token.as_str() {
+        "+" => add,
+        //"-" => sub,
+        //"*" => mult,
+        //"/" => div,
+        _ => panic!("not a valid function")
+    }
+}

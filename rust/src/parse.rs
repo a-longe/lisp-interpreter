@@ -27,3 +27,27 @@ pub fn get_tokens(string: &str) -> Vec<String> {
     }
     tokens
 }
+
+// takes the tokens in a expression and splits them into the arguments
+// of the procedure call
+// ex.
+// (+ 2 (+ 1 1))
+// -> ["(", "+", "2", "(", "+", "1", "1", ")", ")"]
+// -> [["+"], ["2"], ["(", "+", "1", "1", ")"]]
+pub fn split_tokens_into_args(tokens: Vec<String>) -> Vec<Vec<String>> {
+    let mut args = Vec::new();
+    let mut i = 1;
+    while i < tokens.len()-1 {
+        let mut arg: Vec<String> = Vec::new();
+        if tokens[i] == "(" {
+            arg = get_tokens_inside(i, &tokens);
+            i=get_closing_paren_index(i, tokens.clone())+1;
+        }
+        else {
+            arg.push(tokens[i].clone());
+            i+=1;
+        }
+        args.push(arg);
+    }
+    return args;
+}
