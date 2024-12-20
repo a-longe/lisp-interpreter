@@ -13,6 +13,10 @@ pub fn get_closing_paren_index(starting_parentheses_index: usize, tokens: Vec<St
     panic!("invalid string / starting index")
 }
 
+pub fn get_tokens_inside(starting_index: usize, tokens: &Vec<String>) -> Vec<String> {
+    return tokens[starting_index..=get_closing_paren_index(starting_index, tokens.clone())].to_vec();
+}
+
 pub fn get_tokens(string: &str) -> Vec<String> {
     let replace1 = string.replace("(", "( ");
     let replace2 = replace1.replace(")", " )").clone();

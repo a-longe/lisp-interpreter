@@ -1,144 +1,126 @@
-#![allow(unused_imports)]
-use core::panic;
+#![allow(unused_imports, dead_code)]
 use std::collections::HashMap;
-use crate::{funcs, parse::{self, get_closing_paren_index, get_tokens}};
-#[derive(Clone, Debug, PartialEq)]
-pub struct Procedure {
-    pub func_token: String,
-    pub args: Vec<Node>
+use crate::{funcs, parse::{self, get_tokens}};
+
+#[derive(Clone, Debug)]
+pub struct ASTNode {
+    pub pos: (i32, i32),
+    pub expr: Box<Expression>,
+    pub declarations: Declarations
+}
+
+// Future Challenge: implement the deinition and let expression using only
+// the lambda functionality like racket does.
+#[derive(Clone, Debug)]
+pub enum Expression {
+    Literal(Literal),
+    Definition(Definition),
+    Lambda(Lambda),
+    IfElse(IfElse),
+    Let(Let)
+}
+
+#[derive(Clone, Debug)]
+pub enum Literal {
+    Number(Number),
+    Symbol(Symbol),
+    Boolean(Boolean)
+    // more to add
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
-    Number(f64),
-    String(String)
+    Number(Number),
+    Boolean(Boolean)
+    // more to add
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Expr {
-    Procedure(Procedure),
-    Value(Value),
-    Token(String),
-    Asignments(Vec<String>)
+pub struct Number {
+    pub value: f64
+}
+
+#[derive(Clone, Debug)]
+pub struct Symbol {
+    pub value: String
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Node {
-    pub expr: Expr,
-    declarations: Declarations
+pub struct Boolean {
+    pub value: bool
 }
 
-pub fn create_node(expr: Expr, declarations: Declarations) -> Node {
-    return Node {
-        expr,
-        declarations
-    };
-}
-pub fn create_val_node(val: Value) -> Node {
-    create_node(Expr::Value(val), get_empty_declarations())
+#[derive(Clone, Debug)]
+pub struct ProcedureCall {
+    operator: ASTNode,
+    operands: Vec<ASTNode>
 }
 
-pub fn get_expr_from_str(string: &str) -> Expr {
-    match string.chars().nth(0).expect("Cannot get value from string with len == 0") {
-        '0'..='9' | '-' => Expr::Value(Value::Number(string.parse().unwrap())),
-        '"' | '\'' => Expr::Value(Value::String(string.to_string()[1..string.to_string().len()-1].to_string())),
-        '(' => Expr::Procedure(create_ast(get_tokens(string)).get_proc()),
-        'A'..='z' => Expr::Token(string.to_string()),
-        _ => panic!("string does not fit into patterns")
-    }
+#[derive(Clone, Debug)]
+pub struct Definition {
+    name: Symbol,
+    value: ASTNode
 }
 
-pub fn create_ast(tokens: Vec<String>) -> Node {
-    /*
-    (+ 2 (* 1 2))
-     ^
-    not '(' -> grab token ; add to list
-
-    (+ 2 (* 1 2))
-       ^
-    not '(' -> grab token ; add to list
-
-    (+ 2 (* 1 2))
-         ^------
-    is '(' so recursively pass (* 1 2) back to command
-
-    */
-    let str_args = &tokens[1..tokens.len()-1].to_vec();
-    println!("tokens: {:?}", str_args);
-    let mut args: Vec<Node> = Vec::new();
-    let mut func_token: String = String::new();
-    let mut is_first = true;
-    let mut i = 0;
-    loop {
-        if i >= str_args.len() { break; }
-        let token = str_args[i].clone();
-        println!("token: {}", token);
-        if is_first {
-            func_token = token.clone();
-            is_first = false;
-            i += 1;
-            continue;
-        }
-        match token.as_str() {
-            "(" => args.push(create_ast(str_args[i..=parse::get_closing_paren_index(i, str_args.clone())].to_vec())),
-            _ => args.push(Node { expr: get_expr_from_str(&token), declarations: get_empty_declarations()})
-        }
-        i += match token.as_str() {
-            "(" => parse::get_closing_paren_index(i, str_args.clone()),
-            _ => 1
-        }
-    }
-    println!("{:?}", args[0]);
-    let expr = Expr::Procedure(Procedure { func_token, args });
-
-    return Node {
-        expr,
-        declarations: get_empty_declarations()
-    }
-}
-#[derive(Debug, PartialEq, Eq)]
-pub struct Error {
-    pub reason: String
+#[derive(Clone, Debug)]
+pub struct Lambda {
+    params: Vec<Symbol>,
+    function: ASTNode,
+    body: Vec<ASTNode>
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
+pub struct IfElse {
+    condition: ASTNode,
+    then_branch: ASTNode,
+    else_branch: ASTNode
+}
+
+#[derive(Clone, Debug)]
+pub struct Let {
+    bindings: Vec<Definition>,
+    body: Vec<ASTNode>
+}
+
+#[derive(Clone, Debug)]
 pub struct Declarations {
-    pub data: HashMap<String, Value>
+    pub declr: HashMap<Symbol, Value>
 }
-impl Declarations {
-    fn get_value(&self, token: &str) -> Result<Value, Error> {
-        match self.data.get(token) {
-            Some(v) => Ok(v.clone()),
-            None => Err(Error{ reason:"Cannot find var in scope".to_string()})
+
+/*
+*
+* IMPLEMENTATIONS BELOW
+*
+*/
+
+impl ASTNode {
+    pub fn execute(&self) -> Value {
+        match *self.expr {
+            Expression::Literal(_) => self.exec_literal(),
+            _ => panic!("unsupported expression type")
         }
     }
-}
 
-pub fn get_empty_declarations() -> Declarations {
-    Declarations {
-        data: HashMap::new()
-    }
-}
-
-impl Node {
-    pub fn execute(&self) -> Result<Value, Error> {
-        match &self.expr {
-            Expr::Value(val) => return Ok(val.clone()),
-            Expr::Procedure(p) => {
-                let func = funcs::lisp_func_token_to_rust(p.func_token.clone());
-                return func(&self);
-            }
-            Expr::Token(token) => { Ok(self.declarations.get_value(&token.clone()))?}
-            Expr::Asignments(_) => { Err(Error{ reason:"canot execute assignments expression".to_string()})}
+    pub fn exec_literal(&self) -> Value {
+        match (*self.expr).clone() {
+            Expression::Literal(l) => {
+                match l {
+                    Literal::Number(v) => {Value::Number(v)},
+                    Literal::Boolean(v) => {Value::Boolean(v)},
+                    _ => panic!("unsuported literal type")
+                }
+            },
+            _ => panic!("Pattern matching error")
         }
-
     }
 
-    pub fn get_proc(&self) -> Procedure {
-        return match &self.expr {
-        Expr::Procedure(p) => p.clone(),
-        _ => panic!("trying to apply function to a value or token")
-        };
+    pub fn simple_node(expr: Expression) -> ASTNode {
+        return ASTNode {pos: (0, 0),
+                        expr: Box::new(expr),
+                        declarations: Declarations {declr: HashMap::new()}}
     }
-
 }
+
+pub fn create_ast(tokens: Vec<String>) {}
+
+fn create_ast_node_recursive(parent: &ASTNode, tokens: Vec<String>) {}
