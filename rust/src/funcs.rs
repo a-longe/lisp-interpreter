@@ -1,8 +1,10 @@
-use crate::ast::{self, ASTNode, Number, Value};
-use crate::racketError::{Error, create_error};
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
-fn add(operands: Vec<ASTNode>) -> Option<Value> {
-    let mut sum: f64 = 0.0;
+use crate::ast::{self, ASTNode, Number, Value};
+
+pub fn add(operands: Vec<ASTNode>) -> Option<Value> {
+    let mut sum: Decimal = dec!(0.0);
     for expr in operands {
         match expr.execute() {
             Value::Number(Number{value: n}) => sum += n,
@@ -11,94 +13,57 @@ fn add(operands: Vec<ASTNode>) -> Option<Value> {
     }
     return Some(Value::Number(Number { value: sum }));
 }
-/*
-fn sub(&self, operands: Vec<ast::Expression>) -> Result<ast::Number, Error> {
-    let sum: f64 = 0.0;
-    match expr.execute() {
-        ast::Number{value: a} => sum = a,
-        _ => return Err(create_error("cannot sub non-numbers"))
-    }
+pub fn sub(operands: Vec<ASTNode>) -> Option<Value> {
+    let mut sum: Decimal = dec!(0.0);
+    let mut is_first = true;
     for expr in operands {
         match expr.execute() {
-            ast::Number{value: a} => sum -= a,
-            _ => return Err(create_error("cannot sub non-numbers"))
+            Value::Number( Number {value: n}) => {
+                if is_first {
+                    sum = n;
+                    is_first = false;
+                }
+                else {
+                    sum -= n;
+                }
+            },
+            _ => return None
         }
     }
-    return Ok(ast::Number{value: sum});
+    return Some(Value::Number(Number {value:sum}));
 }
-*/
-//fn add(node: &Node) -> Result<Value, ast::Error> {
-//    let proc: Procedure = node.get_proc();
-//    let mut sum: f64 = 0.0;
-//    for n in &proc.args {
-//        sum += match n.execute() {
-//            Ok(Value::Number(num)) => num,
-//            Err(e) => return Err(e),
-//            _ => return Err(ast::Error {reason: "cannot add non-numbers".to_string()})
-//        }
-//    }
-//    Ok(Value::Number(sum))
-//}
-//
-//fn sub(node: &Node) -> Result<Value, ast::Error> {
-//    let proc: Procedure = node.get_proc();
-//    let mut sum: f64 = 0.0;
-//    let mut is_first: bool = true;
-//    let mut num: f64;
-//    for n in &proc.args {
-//        num = match n.execute() {
-//            Ok(Value::Number(num)) => num,
-//            Err(e) => return Err(e),
-//            _ => return Err(ast::Error {reason: "cannot sub non-numbers".to_string()})
-//        };
-//        if is_first {
-//            sum += num;
-//            is_first = false
-//        }
-//        else {
-//            sum -= num;
-//        }
-//    }
-//    if proc.args.len() == 1 { return Ok(Value::Number(-sum));}
-//    Ok(Value::Number(sum))
-//}
-//
-//fn mult(node: &Node) -> Result<Value, ast::Error>{
-//    let proc: Procedure = node.get_proc();
-//    let mut product: f64 = 1.0;
-//    for n in &proc.args {
-//        product *= match n.execute() {
-//            Ok(Value::Number(num)) => num,
-//            Err(e) => return Err(e),
-//            _ => return Err(Error{reason: "cannot multiply by non-numbers".to_string()}),
-//        }
-//    }
-//    return Ok(Value::Number(product));
-//}
-//
-//fn div(node: &Node) -> Result<Value, ast::Error> {
-//    let proc: Procedure = node.get_proc();
-//    let mut quotient: f64 = 0.0;
-//    let mut num: f64;
-//    let mut is_first = true;
-//    for n in &proc.args {
-//        num = match n.execute() {
-//            Ok(Value::Number(num)) => num,
-//            Err(e) => return Err(e),
-//            _ => return Err(Error{ reason: "cannot mult non-numbers".to_string()})};
-//        if !is_first && num == 0.0 {
-//            return Err(Error { reason: "division by zero".to_string()});
-//        }
-//        if is_first {
-//            quotient = num;
-//            is_first = false;
-//        }
-//        else { quotient /= num; }
-//    }
-//    if proc.args.len() == 1 { return Ok(Value::Number(1.0/quotient))}
-//    return Ok(Value::Number(quotient));
-//}
-//
+pub fn mult(operands: Vec<ASTNode>) -> Option<Value> {
+    let mut product: Decimal = dec!(1.0);
+    for expr in operands {
+        product *= match expr.execute() {
+            Value::Number( Number {value: n} ) => n,
+            _ => return None
+        }
+    }
+    return Some(Value::Number(Number {value: product} ));
+}
+
+pub fn div(operands: Vec<ASTNode>) -> Option<Value> {
+    let mut quotient: Decimal = dec!(0);
+    let mut num: Decimal;
+    let mut is_first = true;
+    for expr in &operands {
+        num = match expr.execute() {
+            Value::Number( Number {value: n} ) => n,
+            _ => dec!(0) };
+        if num == dec!(0) {
+            return None
+        }
+        if is_first {
+            quotient = num;
+            is_first = false;
+        }
+        else { quotient /= num; }
+    }
+    if operands.len() == 1 { return Some(Value::Number( Number { value:dec!(1)/quotient } ))}
+    return Some(Value::Number(Number {value:quotient}));
+}
+
 //fn rust_let(node: &Node) -> Result<Value, ast::Error> {
 //    let proc = node.get_proc();
 //    if proc.args.len() != 2 { return Err( Error{ reason:"Invalid Syntax: Let must have only 2 args".to_string()}); }
@@ -108,12 +73,13 @@ fn sub(&self, operands: Vec<ast::Expression>) -> Result<ast::Number, Error> {
 //    };
 //    return proc.args[1].execute();
 //}
+
 pub fn symbol_to_function(lisp_func_token: String) -> impl Fn(Vec<ASTNode>) -> Option<Value> {
     match lisp_func_token.as_str() {
         "+" => add,
-        //"-" => sub,
-        //"*" => mult,
-        //"/" => div,
+        "-" => sub,
+        "*" => mult,
+        "/" => div,
         _ => panic!("not a valid function")
     }
 }

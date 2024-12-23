@@ -1,5 +1,6 @@
-#![allow(unused_imports, dead_code)]
 use std::collections::HashMap;
+use rust_decimal::Decimal;
+
 use crate::{funcs::{self, symbol_to_function}, parse::{self, get_tokens, split_tokens_into_args}};
 
 #[derive(Clone, Debug)]
@@ -33,7 +34,7 @@ pub enum Value {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Number {
-    pub value: f64
+    pub value: Decimal
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -129,7 +130,7 @@ fn create_ast_node_recursive(declarations: Box<Declarations>, tokens: Vec<String
 
         else if tokens[0].parse::<f64>().is_ok() { // number literal
             expr = Expression::Literal(Literal::Number(
-                Number { value: tokens[0].parse::<f64>().unwrap()}));
+                Number { value: Decimal::from_str_exact(&tokens[0]).expect("cannot be cast to decimal")}));
         }
 
         else { // symbol
