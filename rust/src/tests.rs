@@ -234,8 +234,46 @@ fn create_ast_and_exec_division_by_zero() {
     Value::Number(Number { value: dec!(2) }));
 }
 
-//#[test]
-//fn symbol_to_function_add() {
-//    assert_eq!(symbol_to_function("+".to_string()), add);
-//}
+#[test]
+fn create_ast_basic_let() {
+    create_ast(get_tokens("(let ((x 2)) 2)"));
+}
+
+#[test]
+fn create_ast_basic_let_with_assignment() {
+    create_ast(get_tokens("(let ((x 2)) x)"));
+}
+
+#[test]
+fn exec_literal_symbol_without_assignment () {
+        assert_eq!(create_ast(get_tokens("x")).execute(),
+            Value::Symbol(Symbol {value: "x".to_string()}));
+}
+
+#[test]
+fn exec_literal_symbol_with_assignment () {
+        let mut a = create_ast(get_tokens("x"));
+        a.declarations.add(Symbol {value: "x".to_string()},
+            Value::Number( Number {value: dec!(2)}));
+        assert_eq!(a.execute(), Value::Number(Number {value: dec!(2)}));
+
+}
+
+#[test]
+fn create_ast_and_exec_let() {
+    assert_eq!(create_ast(get_tokens("(let ((x 2)) x)")).execute(),
+    Value::Number(Number { value: dec!(2) }));
+}
+
+#[test]
+fn create_ast_and_exec_let_with_arithmatic() {
+    assert_eq!(create_ast(get_tokens("(let ((x 2)) (* 2 x))")).execute(),
+    Value::Number(Number { value: dec!(4) }));
+}
+
+#[test]
+fn create_ast_and_exec_let_nested() {
+    assert_eq!(create_ast(get_tokens("(let ((x 2)) (let ((y 2)) (* x y)))")).execute(),
+    Value::Number(Number { value: dec!(4) }));
+}
 

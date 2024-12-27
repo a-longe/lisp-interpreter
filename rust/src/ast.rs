@@ -37,7 +37,7 @@ pub struct Number {
     pub value: Decimal
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Symbol {
     pub value: String
 }
@@ -49,8 +49,8 @@ pub struct Boolean {
 
 #[derive(Clone, Debug)]
 pub struct ProcedureCall {
-    operator: ASTNode,
-    operands: Vec<ASTNode>
+    pub operator: ASTNode,
+    pub operands: Vec<ASTNode>
 }
 
 #[derive(Clone, Debug)]
@@ -79,7 +79,14 @@ impl ASTNode {
                 match l {
                     Literal::Number(v) => {Value::Number(v)},
                     Literal::Boolean(v) => {Value::Boolean(v)},
-                    Literal::Symbol(v) => {Value::Symbol(v)}
+                    Literal::Symbol(v) => {
+                        if self.declarations.declr.contains_key(&v) {
+                            return self.declarations.declr[&v].clone();
+                        }
+                        else {
+                            return Value::Symbol(v);
+                        }
+                    }
                     _ => panic!("unsuported literal type")
                 }
             },
@@ -93,7 +100,7 @@ impl ASTNode {
                 let operator_symbol = p.operator.execute();
                 match operator_symbol {
                     Value::Symbol(s) => {
-                        return symbol_to_function(s.value)(p.operands).expect("test");
+                        return symbol_to_function(s.value)(p.operands).unwrap();
                     }
                     _ => panic!("operator expression does not return a symbol")
                 }
@@ -106,6 +113,22 @@ impl ASTNode {
 
 impl Declarations {
     pub fn new() -> Declarations { Declarations {declr: HashMap::new()} }
+    pub fn add(&mut self, k:Symbol, v:Value) { self.declr.insert(k, v); }
+}
+
+impl Expression {
+    pub fn try_into_proc(&self) -> Option<ProcedureCall> {
+        match self {
+            Expression::ProcedureCall(p) => Some(p.clone()),
+            _ => None
+        }
+    }
+    pub fn try_into_lit(&self) -> Option<Literal> {
+        match self {
+            Expression::Literal(l) => Some(l.clone()),
+            _ => None
+        }
+    }
 }
 
 pub fn create_ast(tokens: Vec<String>) -> ASTNode {
