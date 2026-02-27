@@ -1,8 +1,9 @@
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use std::collections::HashMap;
 
-use crate::ast::{self, ASTNode, Expression, Literal, Number, Value, Declarations};
-use crate::racket_error::*;
+use crate::ast::{self, ASTNode, Expression, Procedure, BaseProcedure, Literal, Number, Value, Symbol, Declarations};
+use crate::racket_error::{Error, create_error};
 
 pub fn add(declarations: &Declarations, operands: Vec<ASTNode>) -> Result<Value, Error> {
     let mut sum: Decimal = dec!(0.0);
@@ -66,9 +67,8 @@ pub fn div(declarations: &Declarations, operands: Vec<ASTNode>) -> Result<Value,
     return Ok(Value::Number(Number {value:quotient}));
 }
 
-pub fn rust_let(declarations: &Declarations, mut operands: Vec<ASTNode>) -> Result<Value, Error> {
-    if operands.len() != 2 { return Err(create_error("let function can only take two operands")); }
-    let mut new_def = declarations.clone();
+pub fn rust_lambda(declarations: &Declarations, operands: Vec<ASTNode>) -> Result<Value, Error> {
+    let mut new_def = Declarations::new();
     let mut assignments: Vec<ASTNode> = Vec::new();
     match *operands[0].expr.clone() {
         Expression::ProcedureCall(p) => {
@@ -81,7 +81,7 @@ pub fn rust_let(declarations: &Declarations, mut operands: Vec<ASTNode>) -> Resu
         },
         _ => return Err(create_error("invalid assignment syntax"))
     }
-    let body = &mut operands[1];
+    let body = &operands[1];
     // update new_def with new assignment
     for assignment in assignments {
         match *assignment.expr {
@@ -101,13 +101,22 @@ pub fn rust_let(declarations: &Declarations, mut operands: Vec<ASTNode>) -> Resu
     return Err(create_error("should never reach, no assignments to parse"))
 }
 
-pub fn symbol_to_function(lisp_func_token: String) -> impl Fn(&Declarations, Vec<ASTNode>) -> Result<Value, Error> {
-    match lisp_func_token.as_str() {
-        "+" => add,
-        "-" => sub,
-        "*" => mult,
-        "/" => div,
-        "let" => rust_let,
-        _ => panic!("not a valid function")
+pub fn symbol_to_function(lisp_func: &Symbol) -> Option<Value> {
+    if let Some(func) = get_base_global_scope().get(lisp_func) {
+        return Some(func.clone())
+    }
+    else {
+        return None
     }
 }
+
+pub fn get_base_global_scope() -> HashMap<Symbol, Value> {
+    let mut hm: HashMap<Symbol, Value> = HashMap::new();
+    hm.insert(Symbol::new("+"), Value::Proc(Procedure::BaseProc(BaseProcedure::new(add))));
+    hm.insert(Symbol::new("-"), Value::Proc(Procedure::BaseProc(BaseProcedure::new(sub))));
+    hm.insert(Symbol::new("*"), Value::Proc(Procedure::BaseProc(BaseProcedure::new(mult))));
+    hm.insert(Symbol::new("/"), Value::Proc(Procedure::BaseProc(BaseProcedure::new(div))));
+    hm.insert(Symbol::new("let"), Value::Proc(Procedure::BaseProc(BaseProcedure::new(rust_lambda))));
+    hm
+}
+

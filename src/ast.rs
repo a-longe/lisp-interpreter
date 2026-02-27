@@ -1,12 +1,17 @@
 use std::collections::HashMap;
+use std::fmt::Display;
+use std::hash::Hash;
+use std::panic;
 use rust_decimal::Decimal;
 
 use crate::funcs::symbol_to_function;
+use crate::funcs::get_base_global_scope;
 use crate::parse::*;
+use crate::racket_error::Error;
 
 #[derive(Clone, Debug)]
 pub struct ASTNode {
-    pub pos: (i32, i32),
+    pub pos: (usize, usize),
     pub expr: Box<Expression>,
 }
 
@@ -29,13 +34,14 @@ pub enum Value {
     Number(Number),
     Boolean(Boolean),
     Symbol(Symbol),
-    // Procedure(Procedure) // ik this should probably be a seperate value from sybol but will
+    Proc(Procedure)
+
     // figure out later
     // more to add
 }
 
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Number {
     pub value: Decimal
 }
@@ -45,9 +51,25 @@ pub struct Symbol {
     pub value: String
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Boolean {
     pub value: bool
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Procedure {
+    BaseProc(BaseProcedure),
+    UserProc(UserProcedure)
+}
+
+#[derive(Clone, Debug)]
+pub struct BaseProcedure {
+    value: fn(&Declarations, Vec<ASTNode>) -> Result<Value, Error>
+}
+
+#[derive(Clone, Debug)]
+pub struct UserProcedure {
+    value: ASTNode
 }
 
 #[derive(Clone, Debug)]
@@ -58,7 +80,8 @@ pub struct ProcedureCall {
 
 #[derive(Clone, Debug)]
 pub struct Declarations {
-    pub declr: HashMap<Symbol, Value>
+    // Note that the last element in the Vec will reference the deepest scope
+    pub declr: Vec<HashMap<Symbol, Value>>
 }
 
 /*
@@ -83,11 +106,11 @@ impl ASTNode {
                     Literal::Number(v) => {Value::Number(v)},
                     Literal::Boolean(v) => {Value::Boolean(v)},
                     Literal::Symbol(v) => {
-                        if declarations.declr.contains_key(&v) {
-                            return declarations.declr[&v].clone();
+                        if let Some(val) = declarations.get(&v) {
+                            return val
                         }
                         else {
-                            return Value::Symbol(v);
+                            _ = panic!("unknown variable: {}", v);
                         }
                     }
                     _ => panic!("unsuported literal type")
@@ -103,7 +126,18 @@ impl ASTNode {
                 let operator_symbol = p.operator.execute(declarations);
                 match operator_symbol {
                     Value::Symbol(s) => {
-                        return symbol_to_function(s.value)(declarations, p.operands).unwrap();
+                        if let Some(val) = symbol_to_function(&s) {
+                            match val {
+                                Value::Proc(Procedure::BaseProc(func)) =>
+                                    return (func.value)(declarations, p.operands).unwrap(),
+                                Value::Proc(Procedure::UserProc(func)) =>
+                                    return func.value.execute(declarations)
+                                _ => panic!("not a procedure: {}", val)
+                            }
+                        }
+                        else {
+                            panic!("procedure not defined: {}", s);
+                        }
                     }
                     _ => panic!("operator expression does not return a symbol")
                 }
@@ -114,9 +148,44 @@ impl ASTNode {
 
 }
 
+impl PartialEq for ASTNode {
+    fn eq(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
+impl From<Vec<String>> for ASTNode {
+    fn from(value: Vec<String>) -> Self {
+        create_ast(value)
+    }
+}
+
+impl From<&str> for ASTNode {
+    fn from(value: &str) -> Self {
+        ASTNode::from(get_tokens(value))
+    }
+}
+
 impl Declarations {
-    pub fn new() -> Declarations { Declarations {declr: HashMap::new()} }
-    pub fn add(&mut self, k:Symbol, v:Value) { self.declr.insert(k, v); }
+    pub fn new() -> Declarations {
+        Declarations {declr: vec![HashMap::new()]}
+    }
+    pub fn global() -> Declarations {
+        Declarations { declr: vec![get_base_global_scope()] }
+    }
+    pub fn add(&mut self, k:Symbol, v:Value) {
+        self.declr.last_mut()
+            .expect("Declarations Vector is empty")
+            .insert(k, v);
+    }
+    pub fn get(&self, s:&Symbol) -> Option<Value> {
+        for scope in self.declr.iter().rev() {
+            if scope.contains_key(s) {
+               return Some(scope[s].clone())
+            }
+        }
+        return None
+    }
 }
 
 impl Expression {
@@ -134,7 +203,37 @@ impl Expression {
     }
 }
 
-pub fn create_ast(tokens: Vec<String>) -> ASTNode {
+impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "\"{}\"", self.value)
+    }
+}
+
+impl Symbol {
+    pub fn new(s:&str) -> Symbol {
+        Symbol { value: s.to_string() }
+    }
+}
+
+impl PartialEq for BaseProcedure {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl BaseProcedure {
+    pub fn new(func: fn(&Declarations, Vec<ASTNode>) -> Result<Value, Error>) -> BaseProcedure {
+        BaseProcedure { value: func }
+    }
+}
+
+impl PartialEq for UserProcedure {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+fn create_ast(tokens: Vec<String>) -> ASTNode {
     ASTNode {pos: (0,0),
         expr: Box::new(create_ast_node_recursive(tokens))
     }
@@ -181,4 +280,3 @@ fn create_ast_node_recursive(tokens: Vec<String>) -> Expression {
     }
     return expr;
 }
-
