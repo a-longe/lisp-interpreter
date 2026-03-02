@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::panic;
@@ -13,6 +14,7 @@ use crate::racket_error::Error;
 pub struct ASTNode {
     pub pos: (usize, usize),
     pub expr: Box<Expression>,
+    pub tokens: String
 }
 
 #[derive(Clone, Debug)]
@@ -64,7 +66,7 @@ pub enum Procedure {
 
 #[derive(Clone, Debug)]
 pub struct BaseProcedure {
-    value: fn(&Declarations, Vec<ASTNode>) -> Result<Value, Error>
+    value: fn(&mut Declarations, Vec<ASTNode>) -> Result<Value, Error>
 }
 
 #[derive(Clone, Debug)]
@@ -91,7 +93,7 @@ pub struct Declarations {
 */
 
 impl ASTNode {
-    pub fn execute(&self, declarations: &Declarations) -> Value {
+    pub fn execute(&self, declarations: &mut Declarations) -> Value {
         match *self.expr {
             Expression::Literal(_)  => self.exec_literal(declarations),
             Expression::ProcedureCall(_) => self.exec_proc(declarations),
@@ -99,7 +101,7 @@ impl ASTNode {
         }
     }
 
-    pub fn exec_literal(&self, declarations: &Declarations) -> Value {
+    fn exec_literal(&self, declarations: &Declarations) -> Value {
         match (*self.expr).clone() {
             Expression::Literal(l) => {
                 match l {
@@ -120,26 +122,20 @@ impl ASTNode {
         }
     }
 
-    pub fn exec_proc(&self, declarations: &Declarations) -> Value {
+    fn exec_proc(&self, declarations: &mut Declarations) -> Value {
         match *self.expr.clone() {
             Expression::ProcedureCall(p) => {
                 let operator_symbol = p.operator.execute(declarations);
                 match operator_symbol {
-                    Value::Symbol(s) => {
-                        if let Some(val) = symbol_to_function(&s) {
-                            match val {
-                                Value::Proc(Procedure::BaseProc(func)) =>
-                                    return (func.value)(declarations, p.operands).unwrap(),
-                                Value::Proc(Procedure::UserProc(func)) =>
-                                    return func.value.execute(declarations)
-                                _ => panic!("not a procedure: {}", val)
-                            }
-                        }
-                        else {
-                            panic!("procedure not defined: {}", s);
+                    Value::Proc(proc) => {
+                        match proc {
+                            Procedure::BaseProc(func) =>
+                                return (func.value)(declarations, p.operands).unwrap(),
+                            Procedure::UserProc(func) =>
+                                return func.value.execute(declarations),
                         }
                     }
-                    _ => panic!("operator expression does not return a symbol")
+                    _ => panic!("operator is not a procedure")
                 }
             },
             _ => panic!("Pattern matching error in execute method on ASTNode")
@@ -186,6 +182,9 @@ impl Declarations {
         }
         return None
     }
+    pub fn add_scope(&mut self) {
+        self.declr.push(HashMap::new());
+    }
 }
 
 impl Expression {
@@ -199,6 +198,17 @@ impl Expression {
         match self {
             Expression::Literal(l) => Some(l.clone()),
             _ => None
+        }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Number(val) => write!(f, "Value::Number {}", val.value),
+            Value::Boolean(val) => write!(f, "Value::Boolean {}", val.value),
+            Value::Symbol(val) => write!(f, "Value::Symbol {}", val.value),
+            Value::Proc(val) => val.fmt(f)
         }
     }
 }
@@ -222,7 +232,7 @@ impl PartialEq for BaseProcedure {
 }
 
 impl BaseProcedure {
-    pub fn new(func: fn(&Declarations, Vec<ASTNode>) -> Result<Value, Error>) -> BaseProcedure {
+    pub fn new(func: fn(&mut Declarations, Vec<ASTNode>) -> Result<Value, Error>) -> BaseProcedure {
         BaseProcedure { value: func }
     }
 }
@@ -235,7 +245,8 @@ impl PartialEq for UserProcedure {
 
 fn create_ast(tokens: Vec<String>) -> ASTNode {
     ASTNode {pos: (0,0),
-        expr: Box::new(create_ast_node_recursive(tokens))
+        expr: Box::new(create_ast_node_recursive(tokens.clone())),
+        tokens: tokens.join(" ")
     }
 }
 
@@ -267,11 +278,13 @@ fn create_ast_node_recursive(tokens: Vec<String>) -> Expression {
         // must be proc call
         let arguments = split_tokens_into_args(tokens);
         let operator: ASTNode = ASTNode {pos: (0,0),
-            expr: Box::new(create_ast_node_recursive(arguments[0].clone()))};
+            expr: Box::new(create_ast_node_recursive(arguments[0].clone())),
+            tokens: arguments[0].join(" ") };
         let mut operands:Vec<ASTNode> = Vec::new();
         for i in 1..arguments.len() {
             operands.push( ASTNode { pos: (0,0),
-                expr: Box::new(create_ast_node_recursive(arguments[i].clone()))});
+                expr: Box::new(create_ast_node_recursive(arguments[i].clone())),
+                tokens: arguments[i].join(" ")});
         }
         expr = Expression::ProcedureCall(ProcedureCall {
             operator,
