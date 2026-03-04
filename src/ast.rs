@@ -71,7 +71,8 @@ pub struct BaseProcedure {
 
 #[derive(Clone, Debug)]
 pub struct UserProcedure {
-    value: ASTNode
+    value: ASTNode,
+    var_id: Symbol
 }
 
 #[derive(Clone, Debug)]
@@ -131,8 +132,11 @@ impl ASTNode {
                         match proc {
                             Procedure::BaseProc(func) =>
                                 return (func.value)(declarations, p.operands).unwrap(),
-                            Procedure::UserProc(func) =>
-                                return func.value.execute(declarations),
+                            Procedure::UserProc(func) => {
+                                    let var_val = &p.operands[0].execute(declarations);
+                                    declarations.add(func.var_id, var_val.clone());
+                                    return func.value.execute(declarations);
+                                }
                         }
                     }
                     _ => panic!("operator is not a procedure")
@@ -159,6 +163,12 @@ impl From<Vec<String>> for ASTNode {
 impl From<&str> for ASTNode {
     fn from(value: &str) -> Self {
         ASTNode::from(get_tokens(value))
+    }
+}
+
+impl UserProcedure {
+    pub fn new(node: ASTNode, var_id: Symbol) -> UserProcedure {
+        UserProcedure { value: node, var_id: var_id }
     }
 }
 

@@ -2,7 +2,7 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::collections::HashMap;
 
-use crate::ast::{self, ASTNode, Expression, Procedure, BaseProcedure, Literal, Number, Value, Symbol, Declarations};
+use crate::ast::{self, ASTNode, BaseProcedure, Declarations, Expression, Literal, Number, Procedure, Symbol, UserProcedure, Value};
 use crate::racket_error::{Error, create_error};
 
 pub fn add(declarations: &mut Declarations, operands: Vec<ASTNode>) -> Result<Value, Error> {
@@ -68,14 +68,11 @@ pub fn div(declarations: &mut Declarations, operands: Vec<ASTNode>) -> Result<Va
 }
 
 pub fn rust_lambda(declarations: &mut Declarations, operands: Vec<ASTNode>) -> Result<Value, Error> {
-    if operands.len() != 3 { return Err(create_error(&format!("invalid syntax \n Expected 3 \n Got {}", operands.len()))) }
+    if operands.len() != 2 { return Err(create_error(&format!("Iwvalid Syntax - Expected 2 \n Got {}", operands.len()))) }
 
     let ASTNode { pos:_, expr: boxed_expr, ..} = &operands[0];
     if let Expression::Literal(Literal::Symbol(arg_id)) = boxed_expr.as_ref() {
-        let arg_val = operands[2].execute(declarations);
-        declarations.add_scope();
-        declarations.add(arg_id.clone(), arg_val);
-        return Ok(operands[1].execute(declarations))
+        return Ok(Value::Proc(Procedure::UserProc( UserProcedure::new(operands[1].clone(), arg_id.clone()) )));
     }
     else {
         return Err(create_error("Bad Argument"));

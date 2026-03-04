@@ -266,21 +266,55 @@ fn exec_literal_symbol_with_assignment () {
 
 #[test]
 fn create_ast_and_exec_lambda() {
-    assert_eq!(ASTNode::from("(lambda x x 2)").execute(&mut Declarations::global()),
+    assert_eq!(ASTNode::from("((lambda x x) 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2) }));
 }
 
 #[test]
 fn create_ast_and_exec_lambda_with_arithmatic() {
-    assert_eq!(ASTNode::from("(lambda x (* 2 x) 2)").execute(&mut Declarations::global()),
+    assert_eq!(ASTNode::from("((lambda x (* 2 x)) 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(4) }));
 }
 
 #[test]
 fn create_ast_and_exec_lambda_nested() {
     assert_eq!(
-        ASTNode::from("(lambda x (lambda y (* x y) 2) 2)")
+        ASTNode::from("((lambda x ((lambda y (* x y)) 2)) 2)")
             .execute(&mut Declarations::global()),
         Value::Number(Number { value: dec!(4) }));
 }
 
+#[test]
+fn create_ast_and_exec_lambda_nested_same_id() {
+    assert_eq!(
+        ASTNode::from("((lambda x (* x ((lambda x x) 2))) 3)")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(6) }));
+}
+
+#[test]
+fn create_ast_and_exec_lambda_branched_same_id() {
+    assert_eq!(
+        ASTNode::from("(+ ((lambda x (+ x 1)) 2) ((lambda x (* 2 x)) 3))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(9) }));
+}
+
+#[test]
+#[should_panic]
+fn create_ast_and_and_use_var_from_outer_scope() {
+    assert_eq!(
+        ASTNode::from("(+
+                            ((lambda x (+ x 1)) 2)
+                            (* 2 x))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(9) }));
+}
+
+#[test]
+fn create_ast_and_exec_define_function() {
+    assert_eq!(
+        ASTNode::from("((lambda sqr (sqr 5)) (lambda x (* x x)))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(25) }));
+}
