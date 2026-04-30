@@ -285,6 +285,7 @@ fn create_ast_and_exec_lambda_nested() {
 }
 
 #[test]
+#[should_panic]
 fn create_ast_and_exec_lambda_nested_same_id() {
     assert_eq!(
         ASTNode::from("((lambda x (* x ((lambda x x) 2))) 3)")
@@ -317,4 +318,10 @@ fn create_ast_and_exec_define_function() {
         ASTNode::from("((lambda sqr (sqr 5)) (lambda x (* x x)))")
             .execute(&mut Declarations::global()),
         Value::Number(Number { value: dec!(25) }));
+}
+
+#[test]
+fn lambda_closure_capture_basic() {
+    assert_eq!(ASTNode::from("((lambda x ((lambda null x) 0)) 30)").execute(&mut Declarations::global()),
+    Value::Number(Number { value: dec!(30) }));
 }

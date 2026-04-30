@@ -10,7 +10,7 @@ pub fn get_closing_paren_index(starting_parentheses_index: usize, tokens: Vec<St
             return i + starting_parentheses_index;
         }
     }
-    panic!("invalid string / starting index")
+    panic!("Parentheses Do Not Match")
 }
 
 pub fn get_tokens_inside(starting_index: usize, tokens: &Vec<String>) -> Vec<String> {

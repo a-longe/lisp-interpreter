@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::hash::Hash;
@@ -84,7 +85,8 @@ pub struct ProcedureCall {
 #[derive(Clone, Debug)]
 pub struct Declarations {
     // Note that the last element in the Vec will reference the deepest scope
-    pub declr: Vec<HashMap<Symbol, Value>>
+    pub declr: Vec<HashMap<Symbol, Value>>,
+    set: HashSet<Symbol>
 }
 
 /*
@@ -134,8 +136,9 @@ impl ASTNode {
                                 return (func.value)(declarations, p.operands).unwrap(),
                             Procedure::UserProc(func) => {
                                     let var_val = &p.operands[0].execute(declarations);
-                                    declarations.add(func.var_id, var_val.clone());
-                                    return func.value.execute(declarations);
+                                    let mut new_declr = declarations.clone();
+                                    new_declr.add(func.var_id, var_val.clone());
+                                    return func.value.execute(&mut new_declr);
                                 }
                         }
                     }
@@ -174,15 +177,22 @@ impl UserProcedure {
 
 impl Declarations {
     pub fn new() -> Declarations {
-        Declarations {declr: vec![HashMap::new()]}
+        Declarations {declr: vec![HashMap::new()], set: HashSet::new()}
     }
     pub fn global() -> Declarations {
-        Declarations { declr: vec![get_base_global_scope()] }
+        let mut dec = Declarations::new();
+        for (k, v) in get_base_global_scope() {
+            dec.add(k, v);
+        }
+        dec
     }
-    pub fn add(&mut self, k:Symbol, v:Value) {
+    pub fn add(&mut self, k:Symbol, v:Value) -> bool {
+        if self.set.contains(&k) { return false; }
         self.declr.last_mut()
             .expect("Declarations Vector is empty")
-            .insert(k, v);
+            .insert(k.clone(), v);
+        self.set.insert(k);
+        return true;
     }
     pub fn get(&self, s:&Symbol) -> Option<Value> {
         for scope in self.declr.iter().rev() {
@@ -237,7 +247,7 @@ impl Symbol {
 
 impl PartialEq for BaseProcedure {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value
+        std::ptr::fn_addr_eq(self.value, other.value)
     }
 }
 
