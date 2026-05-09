@@ -5,6 +5,7 @@ pub mod tests;
 pub mod bench;
 pub mod ast;
 pub mod funcs;
+pub mod macros;
 pub mod racket_error;
 fn main() {
     println!("Hello World!");
