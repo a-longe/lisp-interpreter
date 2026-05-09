@@ -279,3 +279,93 @@ fn create_ast_and_exec_let_nested() {
     Value::Number(Number { value: dec!(4) }));
 }
 
+#[test]
+fn if_true_returns_then_branch() {
+    assert_eq!(create_ast(get_tokens("(if #true 1 2)")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(1) }));
+}
+
+#[test]
+fn if_false_returns_else_branch() {
+    assert_eq!(create_ast(get_tokens("(if #false 1 2)")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(2) }));
+}
+
+#[test]
+fn if_returns_boolean_then() {
+    assert_eq!(create_ast(get_tokens("(if #true #true #false)")).execute(&Declarations::new()),
+    Value::Boolean(Boolean { value: true }));
+}
+
+#[test]
+fn if_returns_boolean_else() {
+    assert_eq!(create_ast(get_tokens("(if #false #true #false)")).execute(&Declarations::new()),
+    Value::Boolean(Boolean { value: false }));
+}
+
+#[test]
+fn if_with_arithmetic_in_branches() {
+    assert_eq!(create_ast(get_tokens("(if #true (+ 1 2) (+ 3 4))")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(3) }));
+}
+
+#[test]
+fn if_false_with_arithmetic_in_branches() {
+    assert_eq!(create_ast(get_tokens("(if #false (+ 1 2) (+ 3 4))")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(7) }));
+}
+
+#[test]
+fn if_nested_in_then_branch() {
+    assert_eq!(create_ast(get_tokens("(if #true (if #true 10 20) 30)")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(10) }));
+}
+
+#[test]
+fn if_nested_in_else_branch() {
+    assert_eq!(create_ast(get_tokens("(if #false 30 (if #false 10 20))")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(20) }));
+}
+
+#[test]
+fn if_nested_condition() {
+    assert_eq!(create_ast(get_tokens("(if (if #true #true #false) 1 2)")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(1) }));
+}
+
+#[test]
+fn if_with_let_bound_condition() {
+    assert_eq!(create_ast(get_tokens("(let ((b #true)) (if b 1 2))")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(1) }));
+}
+
+#[test]
+fn if_with_let_bound_condition_false() {
+    assert_eq!(create_ast(get_tokens("(let ((b #false)) (if b 1 2))")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(2) }));
+}
+
+#[test]
+fn if_with_let_in_branch() {
+    assert_eq!(create_ast(get_tokens("(if #true (let ((x 5)) x) 0)")).execute(&Declarations::new()),
+    Value::Number(Number { value: dec!(5) }));
+}
+
+#[test]
+#[should_panic]
+fn if_too_few_args() {
+    create_ast(get_tokens("(if #true 1)")).execute(&Declarations::new());
+}
+
+#[test]
+#[should_panic]
+fn if_too_many_args() {
+    create_ast(get_tokens("(if #true 1 2 3)")).execute(&Declarations::new());
+}
+
+#[test]
+#[should_panic]
+fn if_non_boolean_condition() {
+    create_ast(get_tokens("(if 1 2 3)")).execute(&Declarations::new());
+}
+

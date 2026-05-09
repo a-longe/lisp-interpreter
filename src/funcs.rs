@@ -101,6 +101,20 @@ pub fn rust_let(declarations: &Declarations, mut operands: Vec<ASTNode>) -> Resu
     return Err(create_error("should never reach, no assignments to parse"))
 }
 
+pub fn rust_if(declarations: &Declarations, operands: Vec<ASTNode>) -> Result<Value, Error> {
+    if operands.len() != 3 { return Err(create_error("if must have 3 arguments")); }
+    let condition: bool = match operands[0].execute(declarations) {
+        Value::Boolean(b) => b.value,
+        _ => return Err(create_error("First operand of if must be a bool"))
+    };
+    if condition {
+        Ok(operands[1].execute(declarations))
+    }
+    else {
+        Ok(operands[2].execute(declarations))
+    }
+
+}
 pub fn symbol_to_function(lisp_func_token: String) -> impl Fn(&Declarations, Vec<ASTNode>) -> Result<Value, Error> {
     match lisp_func_token.as_str() {
         "+" => add,
@@ -108,6 +122,7 @@ pub fn symbol_to_function(lisp_func_token: String) -> impl Fn(&Declarations, Vec
         "*" => mult,
         "/" => div,
         "let" => rust_let,
+        "if" => rust_if,
         _ => panic!("not a valid function")
     }
 }
