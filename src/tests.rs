@@ -9,8 +9,10 @@ use std::collections::HashMap;
 
 pub fn simple_node(expr: Expression) -> ASTNode {
     return ASTNode {pos: (0, 0),
-                    expr: Box::new(expr)}
+                    expr: Box::new(expr),
+                    tokens: "Global Scope".to_string()};
 }
+
 
 
 
@@ -19,28 +21,28 @@ pub fn simple_node(expr: Expression) -> ASTNode {
 fn exec_literal_number_basic() {
     let expr = Expression::Literal(Literal::Number(Number {value: dec!(5.4)}));
     let n = simple_node(expr);
-    assert_eq!(n.execute(&Declarations::new()), Value::Number(Number{value: dec!(5.4)}));
+    assert_eq!(n.execute(&mut Declarations::global()), Value::Number(Number{value: dec!(5.4)}));
 }
 
 #[test]
 fn exec_literal_basic_number_ne() {
     let expr = Expression::Literal(Literal::Number(Number {value: dec!(5.4)}));
     let n = simple_node(expr);
-    assert_ne!(n.execute(&Declarations::new()), Value::Number(Number{value: dec!(5.3)}));
+    assert_ne!(n.execute(&mut Declarations::global()), Value::Number(Number{value: dec!(5.3)}));
 }
 
 #[test]
 fn exec_literal_bool_basic() {
     let expr = Expression::Literal(Literal::Boolean(Boolean {value: false}));
     let n = simple_node(expr);
-    assert_eq!(n.execute(&Declarations::new()), Value::Boolean(Boolean{value: false}));
+    assert_eq!(n.execute(&mut Declarations::global()), Value::Boolean(Boolean{value: false}));
 }
 
 #[test]
 fn exec_literal_basic_bool_ne() {
     let expr = Expression::Literal(Literal::Boolean(Boolean{value: true}));
     let n = simple_node(expr);
-    assert_ne!(n.execute(&Declarations::new()), Value::Boolean(Boolean{value: false}));
+    assert_ne!(n.execute(&mut Declarations::global()), Value::Boolean(Boolean{value: false}));
 }
 
 #[test]
@@ -80,292 +82,437 @@ fn get_args_from_tokens_nested_before_last() {
 
 #[test]
 fn create_ast_and_exec_with_single_literal_number() {
-    assert_eq!(create_ast(get_tokens("2")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("2").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_single_literal_boolean() {
-    assert_eq!(create_ast(get_tokens("#true")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("#true").execute(&mut Declarations::global()),
     Value::Boolean(Boolean { value: true }));
 }
 
 #[test]
 fn create_ast_and_exec_with_single_literal_symbol() {
-    assert_eq!(create_ast(get_tokens("let")).execute(&Declarations::new()),
-    Value::Symbol(Symbol { value: "let".to_string() }));
+    assert_eq!(ASTNode::from("lambda").execute(&mut Declarations::global()),
+    Declarations::global().get(&Symbol { value: "lambda".to_string() }).unwrap());
 }
 
 #[test]
 fn create_ast_and_exec_with_simplest_proc_call() {
-    assert_eq!(create_ast(get_tokens("(+ 1 1)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(+ 1 1)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_negative_literals_number() {
-    assert_eq!(create_ast(get_tokens("-1")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("-1").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(-1.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_negative_literals_zero_number() {
-    assert_eq!(create_ast(get_tokens("-0")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("-0").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(0.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_decimal_literals_number() {
-    assert_eq!(create_ast(get_tokens("1.45")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("1.45").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(1.45) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_negative_decimal_literals_number() {
-    assert_eq!(create_ast(get_tokens("-1.45")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("-1.45").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(-1.45) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_fractional_addition() {
-    assert_eq!(create_ast(get_tokens("(+ 1.5 2.5)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(+ 1.5 2.5)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(4.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_negative_fractional_addition() {
-    assert_eq!(create_ast(get_tokens("(+ -1.5 2.5)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(+ -1.5 2.5)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(1.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_subtraction() {
-    assert_eq!(create_ast(get_tokens("(- 2 1)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(- 2 1)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(1.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_subtraction_2() {
-    assert_eq!(create_ast(get_tokens("(- 1 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(- 1 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(-1.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_subtraction_negative_numbers() {
-    assert_eq!(create_ast(get_tokens("(- -1 -2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(- -1 -2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(1.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_with_multiplication() {
-    assert_eq!(create_ast(get_tokens("(* 5 1)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(* 5 1)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(5.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_addition_with_one_arg() {
-    assert_eq!(create_ast(get_tokens("(+ 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(+ 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_subtraction_with_one_arg() {
-    assert_eq!(create_ast(get_tokens("(- -2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(- -2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(-2) }));
 }
 
 #[test]
 fn create_ast_and_exec_multiplication_with_one_arg() {
-    assert_eq!(create_ast(get_tokens("(* 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(* 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2) }));
 }
 
 #[test]
 fn create_ast_and_exec_fractional_subtraction() {
-    assert_eq!(create_ast(get_tokens("(- 10.2 2.4)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(- 10.2 2.4)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(7.8) }));
 }
 
 #[test]
 fn create_ast_and_exec_fractional_multiplication() {
-    assert_eq!(create_ast(get_tokens("(* 1.5 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(* 1.5 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(3.0) }));
 }
 
 #[test]
 fn create_ast_and_exec_multiplication_by_zero() {
-    assert_eq!(create_ast(get_tokens("(* 1.5 0 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(* .5 0 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(0) }));
 }
 
 #[test]
 fn create_ast_and_exec_fractional_multiplication_lt_one() {
-    assert_eq!(create_ast(get_tokens("(* 0.5 2.2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(* .5 2.2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(1.1) }));
 }
 
 #[test]
 fn create_ast_and_exec_division() {
-    assert_eq!(create_ast(get_tokens("(/ 1 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(/ 1 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(0.5) }));
 }
 
 #[test]
 fn create_ast_and_exec_division_one_arg() {
-    assert_eq!(create_ast(get_tokens("(/ 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(/ 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(0.5) }));
 }
 
 #[test]
 fn create_ast_and_exec_division_with_fractions() {
-    assert_eq!(create_ast(get_tokens("(/ 1 0.5)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(/ 1 .5)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2) }));
 }
 
 #[test]
 fn create_ast_and_exec_division_gt_two_args() {
-    assert_eq!(create_ast(get_tokens("(/ 12 2 3)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(/ 12 2 3)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2) }));
 }
 
 #[test]
 #[should_panic]
 fn create_ast_and_exec_division_by_zero() {
-    assert_eq!(create_ast(get_tokens("(/ 12 2 0 1)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(/ 12 2 0 1)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2) }));
 }
 
 #[test]
-fn create_ast_basic_let() {
-    create_ast(get_tokens("(let ((x 2)) 2)"));
+fn create_ast_basic_lambda() {
+    _ = ASTNode::from("(lambda x 2 2)");
 }
 
 #[test]
-fn create_ast_basic_let_with_assignment() {
-    create_ast(get_tokens("(let ((x 2)) x)"));
+fn create_ast_basic_lambda_with_assignment() {
+    _ = ASTNode::from("(lambda x x 2)");
 }
 
 #[test]
+#[should_panic]
 fn exec_literal_symbol_without_assignment () {
-        assert_eq!(create_ast(get_tokens("x")).execute(&Declarations::new()),
+        assert_eq!(ASTNode::from("x").execute(&mut Declarations::global()),
             Value::Symbol(Symbol {value: "x".to_string()}));
 }
 
 #[test]
 fn exec_literal_symbol_with_assignment () {
-        let a = create_ast(get_tokens("x"));
-        let mut d = Declarations::new();
-        d.add(Symbol {value: "x".to_string()},
+        let a = ASTNode::from("x");
+        let mut scope = Declarations::global();
+        scope.add(Symbol {value: "x".to_string()},
             Value::Number(Number {value: dec!(2)}));
-        assert_eq!(a.execute(&d), Value::Number(Number {value: dec!(2)}));
+        assert_eq!(a.execute(&mut scope), Value::Number(Number {value: dec!(2)}));
 
 }
 
 #[test]
+fn create_ast_and_exec_lambda() {
+    assert_eq!(ASTNode::from("((lambda x x) 2)").execute(&mut Declarations::global()),
+    Value::Number(Number { value: dec!(2) }));
+}
+
+#[test]
+fn create_ast_and_exec_lambda_with_arithmatic() {
+    assert_eq!(ASTNode::from("((lambda x (* 2 x)) 2)").execute(&mut Declarations::global()),
+    Value::Number(Number { value: dec!(4) }));
+}
+
+#[test]
+fn create_ast_and_exec_lambda_nested() {
+    assert_eq!(
+        ASTNode::from("((lambda x ((lambda y (* x y)) 2)) 2)")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(4) }));
+}
+
+#[test]
+fn create_ast_and_exec_lambda_nested_same_id() {
+    assert_eq!(
+        ASTNode::from("((lambda x (* x ((lambda x x) 2))) 3)")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(6) }));
+}
+
+#[test]
+fn create_ast_and_exec_lambda_branched_same_id() {
+    assert_eq!(
+        ASTNode::from("(+ ((lambda x (+ x 1)) 2) ((lambda x (* 2 x)) 3))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(9) }));
+}
+
+#[test]
+#[should_panic]
+fn create_ast_and_and_use_var_from_outer_scope() {
+    assert_eq!(
+        ASTNode::from("(+
+                            ((lambda x (+ x 1)) 2)
+                            (* 2 x))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(9) }));
+}
+
+#[test]
+fn create_ast_and_exec_define_function() {
+    assert_eq!(
+        ASTNode::from("((lambda sqr (sqr 5)) (lambda x (* x x)))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(25) }));
+}
+
+#[test]
+fn lambda_closure_capture_basic() {
+    assert_eq!(ASTNode::from("((lambda x ((lambda null x) 0)) 30)").execute(&mut Declarations::global()),
+    Value::Number(Number { value: dec!(30) }));
+}
+
+#[test]
+fn lambda_returned_closure_captures_outer_var() {
+    assert_eq!(
+        ASTNode::from("(((lambda x (lambda y (+ x y))) 3) 4)")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(7) }));
+}
+
+#[test]
+#[should_panic]
+fn lambda_lexical_not_dynamic_scope() {
+    assert_eq!(
+        ASTNode::from("((lambda f ((lambda x (f 0)) 99)) (lambda y x))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(99) }));
+}
+
+#[test]
+fn lambda_shadowing_does_not_leak() {
+    assert_eq!(
+        ASTNode::from("((lambda x (+ x ((lambda x (* x 10)) 5))) 1)")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(51) }));
+}
+
+#[test]
+fn lambda_independent_closures_from_same_body() {
+    assert_eq!(
+        ASTNode::from("(+ (((lambda x (lambda y (+ x y))) 10) 1) (((lambda x (lambda y (+ x y))) 20) 1))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(32) }));
+}
+
+#[test]
+#[should_panic]
+fn lambda_call_with_no_args() {
+    _ = ASTNode::from("((lambda x x))").execute(&mut Declarations::global());
+}
+
+#[test]
+#[should_panic]
+fn lambda_call_with_too_many_args() {
+    _ = ASTNode::from("((lambda x x) 1 2)").execute(&mut Declarations::global());
+}
+
+#[test]
+#[should_panic]
+fn lambda_definition_wrong_operand_count() {
+    _ = ASTNode::from("(lambda x)").execute(&mut Declarations::global());
+}
+
+#[test]
+fn lambda_closure_captures_value_not_binding() {
+    // f captures x=7 at creation; later shadowing x=999 must not affect f
+    assert_eq!(
+        ASTNode::from("((lambda f ((lambda x (f 0)) 999)) ((lambda x (lambda y x)) 7))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(7) }));
+}
+
+#[test]
+fn lambda_param_shadows_builtin() {
+    assert_eq!(
+        ASTNode::from("((lambda + +) 5)").execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(5) }));
+}
+
+#[test]
+fn lambda_first_class_procedure_roundtrip() {
+    assert_eq!(
+        ASTNode::from("(((lambda f f) (lambda x x)) 42)").execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(42) }));
+}
+
+#[test]
+fn create_ast_basic_let() {
+    _ = ASTNode::from("(let ((x 2)) 2)");
+}
+
+#[test]
+fn create_ast_basic_let_with_assignment() {
+    _ = ASTNode::from("(let ((x 2)) x)");
+}
+
+#[test]
 fn create_ast_and_exec_let() {
-    assert_eq!(create_ast(get_tokens("(let ((x 2)) x)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(let ((x 2)) x)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2) }));
 }
 
 #[test]
 fn create_ast_and_exec_let_with_arithmatic() {
-    assert_eq!(create_ast(get_tokens("(let ((x 2)) (* 2 x))")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(let ((x 2)) (* 2 x))").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(4) }));
 }
 
 #[test]
 fn create_ast_and_exec_let_nested() {
-    assert_eq!(create_ast(get_tokens("(let ((x 2)) (let ((y 2)) (* x y)))")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(let ((x 2)) (let ((y 2)) (* x y)))").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(4) }));
 }
 
 #[test]
 fn if_true_returns_then_branch() {
-    assert_eq!(create_ast(get_tokens("(if #true 1 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #true 1 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(1) }));
 }
 
 #[test]
 fn if_false_returns_else_branch() {
-    assert_eq!(create_ast(get_tokens("(if #false 1 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #false 1 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2) }));
 }
 
 #[test]
 fn if_returns_boolean_then() {
-    assert_eq!(create_ast(get_tokens("(if #true #true #false)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #true #true #false)").execute(&mut Declarations::global()),
     Value::Boolean(Boolean { value: true }));
 }
 
 #[test]
 fn if_returns_boolean_else() {
-    assert_eq!(create_ast(get_tokens("(if #false #true #false)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #false #true #false)").execute(&mut Declarations::global()),
     Value::Boolean(Boolean { value: false }));
 }
 
 #[test]
 fn if_with_arithmetic_in_branches() {
-    assert_eq!(create_ast(get_tokens("(if #true (+ 1 2) (+ 3 4))")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #true (+ 1 2) (+ 3 4))").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(3) }));
 }
 
 #[test]
 fn if_false_with_arithmetic_in_branches() {
-    assert_eq!(create_ast(get_tokens("(if #false (+ 1 2) (+ 3 4))")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #false (+ 1 2) (+ 3 4))").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(7) }));
 }
 
 #[test]
 fn if_nested_in_then_branch() {
-    assert_eq!(create_ast(get_tokens("(if #true (if #true 10 20) 30)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #true (if #true 10 20) 30)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(10) }));
 }
 
 #[test]
 fn if_nested_in_else_branch() {
-    assert_eq!(create_ast(get_tokens("(if #false 30 (if #false 10 20))")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #false 30 (if #false 10 20))").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(20) }));
 }
 
 #[test]
 fn if_nested_condition() {
-    assert_eq!(create_ast(get_tokens("(if (if #true #true #false) 1 2)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if (if #true #true #false) 1 2)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(1) }));
 }
 
 #[test]
 fn if_with_let_bound_condition() {
-    assert_eq!(create_ast(get_tokens("(let ((b #true)) (if b 1 2))")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(let ((b #true)) (if b 1 2))").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(1) }));
 }
 
 #[test]
 fn if_with_let_bound_condition_false() {
-    assert_eq!(create_ast(get_tokens("(let ((b #false)) (if b 1 2))")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(let ((b #false)) (if b 1 2))").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(2) }));
 }
 
 #[test]
 fn if_with_let_in_branch() {
-    assert_eq!(create_ast(get_tokens("(if #true (let ((x 5)) x) 0)")).execute(&Declarations::new()),
+    assert_eq!(ASTNode::from("(if #true (let ((x 5)) x) 0)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(5) }));
 }
 
 #[test]
 #[should_panic]
 fn if_too_few_args() {
-    create_ast(get_tokens("(if #true 1)")).execute(&Declarations::new());
+    ASTNode::from("(if #true 1)").execute(&mut Declarations::global());
 }
 
 #[test]
 #[should_panic]
 fn if_too_many_args() {
-    create_ast(get_tokens("(if #true 1 2 3)")).execute(&Declarations::new());
+    ASTNode::from("(if #true 1 2 3)").execute(&mut Declarations::global());
 }
 
 #[test]
 #[should_panic]
 fn if_non_boolean_condition() {
-    create_ast(get_tokens("(if 1 2 3)")).execute(&Declarations::new());
+    ASTNode::from("(if 1 2 3)").execute(&mut Declarations::global());
 }
-
