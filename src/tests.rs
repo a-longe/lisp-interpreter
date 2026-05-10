@@ -357,3 +357,44 @@ fn lambda_independent_closures_from_same_body() {
             .execute(&mut Declarations::global()),
         Value::Number(Number { value: dec!(32) }));
 }
+
+#[test]
+#[should_panic]
+fn lambda_call_with_no_args() {
+    _ = ASTNode::from("((lambda x x))").execute(&mut Declarations::global());
+}
+
+#[test]
+#[should_panic]
+fn lambda_call_with_too_many_args() {
+    _ = ASTNode::from("((lambda x x) 1 2)").execute(&mut Declarations::global());
+}
+
+#[test]
+#[should_panic]
+fn lambda_definition_wrong_operand_count() {
+    _ = ASTNode::from("(lambda x)").execute(&mut Declarations::global());
+}
+
+#[test]
+fn lambda_closure_captures_value_not_binding() {
+    // f captures x=7 at creation; later shadowing x=999 must not affect f
+    assert_eq!(
+        ASTNode::from("((lambda f ((lambda x (f 0)) 999)) ((lambda x (lambda y x)) 7))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(7) }));
+}
+
+#[test]
+fn lambda_param_shadows_builtin() {
+    assert_eq!(
+        ASTNode::from("((lambda + +) 5)").execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(5) }));
+}
+
+#[test]
+fn lambda_first_class_procedure_roundtrip() {
+    assert_eq!(
+        ASTNode::from("(((lambda f f) (lambda x x)) 42)").execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(42) }));
+}

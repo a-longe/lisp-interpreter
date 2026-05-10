@@ -134,6 +134,9 @@ impl ASTNode {
                             Procedure::BaseProc(func) =>
                                 return (func.value)(declarations, p.operands).unwrap(),
                             Procedure::UserProc(func) => {
+                                    if p.operands.len() != 1 {
+                                        panic!("arity mismatch: expected 1 argument, got {}", p.operands.len());
+                                    }
                                     let var_val = p.operands[0].execute(declarations);
                                     let mut call_env = func.env.clone();
                                     call_env.add_scope();
