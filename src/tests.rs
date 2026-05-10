@@ -285,7 +285,6 @@ fn create_ast_and_exec_lambda_nested() {
 }
 
 #[test]
-#[should_panic]
 fn create_ast_and_exec_lambda_nested_same_id() {
     assert_eq!(
         ASTNode::from("((lambda x (* x ((lambda x x) 2))) 3)")
@@ -324,4 +323,37 @@ fn create_ast_and_exec_define_function() {
 fn lambda_closure_capture_basic() {
     assert_eq!(ASTNode::from("((lambda x ((lambda null x) 0)) 30)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(30) }));
+}
+
+#[test]
+fn lambda_returned_closure_captures_outer_var() {
+    assert_eq!(
+        ASTNode::from("(((lambda x (lambda y (+ x y))) 3) 4)")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(7) }));
+}
+
+#[test]
+#[should_panic]
+fn lambda_lexical_not_dynamic_scope() {
+    assert_eq!(
+        ASTNode::from("((lambda f ((lambda x (f 0)) 99)) (lambda y x))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(99) }));
+}
+
+#[test]
+fn lambda_shadowing_does_not_leak() {
+    assert_eq!(
+        ASTNode::from("((lambda x (+ x ((lambda x (* x 10)) 5))) 1)")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(51) }));
+}
+
+#[test]
+fn lambda_independent_closures_from_same_body() {
+    assert_eq!(
+        ASTNode::from("(+ (((lambda x (lambda y (+ x y))) 10) 1) (((lambda x (lambda y (+ x y))) 20) 1))")
+            .execute(&mut Declarations::global()),
+        Value::Number(Number { value: dec!(32) }));
 }

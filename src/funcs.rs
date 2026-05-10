@@ -67,12 +67,12 @@ pub fn div(declarations: &mut Declarations, operands: Vec<ASTNode>) -> Result<Va
     return Ok(Value::Number(Number {value:quotient}));
 }
 
-pub fn rust_lambda(_declarations: &mut Declarations, operands: Vec<ASTNode>) -> Result<Value, Error> {
+pub fn rust_lambda(declarations: &mut Declarations, operands: Vec<ASTNode>) -> Result<Value, Error> {
     if operands.len() != 2 { return Err(create_error(&format!("Iwvalid Syntax - Expected 2 \n Got {}", operands.len()))) }
 
     let ASTNode { pos:_, expr: boxed_expr, ..} = &operands[0];
     if let Expression::Literal(Literal::Symbol(arg_id)) = boxed_expr.as_ref() {
-        return Ok(Value::Proc(Procedure::UserProc( UserProcedure::new(operands[1].clone(), arg_id.clone()) )));
+        return Ok(Value::Proc(Procedure::UserProc( UserProcedure::new(operands[1].clone(), arg_id.clone(), declarations.clone()) )));
     }
     else {
         return Err(create_error("Bad Argument"));

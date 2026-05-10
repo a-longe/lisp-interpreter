@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::hash::Hash;
@@ -73,7 +72,8 @@ pub struct BaseProcedure {
 #[derive(Clone, Debug)]
 pub struct UserProcedure {
     value: ASTNode,
-    var_id: Symbol
+    var_id: Symbol,
+    env: Declarations
 }
 
 #[derive(Clone, Debug)]
@@ -85,8 +85,7 @@ pub struct ProcedureCall {
 #[derive(Clone, Debug)]
 pub struct Declarations {
     // Note that the last element in the Vec will reference the deepest scope
-    pub declr: Vec<HashMap<Symbol, Value>>,
-    set: HashSet<Symbol>
+    pub declr: Vec<HashMap<Symbol, Value>>
 }
 
 /*
@@ -135,10 +134,11 @@ impl ASTNode {
                             Procedure::BaseProc(func) =>
                                 return (func.value)(declarations, p.operands).unwrap(),
                             Procedure::UserProc(func) => {
-                                    let var_val = &p.operands[0].execute(declarations);
-                                    let mut new_declr = declarations.clone();
-                                    new_declr.add(func.var_id, var_val.clone());
-                                    return func.value.execute(&mut new_declr);
+                                    let var_val = p.operands[0].execute(declarations);
+                                    let mut call_env = func.env.clone();
+                                    call_env.add_scope();
+                                    call_env.add(func.var_id, var_val);
+                                    return func.value.execute(&mut call_env);
                                 }
                         }
                     }
@@ -170,14 +170,14 @@ impl From<&str> for ASTNode {
 }
 
 impl UserProcedure {
-    pub fn new(node: ASTNode, var_id: Symbol) -> UserProcedure {
-        UserProcedure { value: node, var_id: var_id }
+    pub fn new(node: ASTNode, var_id: Symbol, env: Declarations) -> UserProcedure {
+        UserProcedure { value: node, var_id: var_id, env: env }
     }
 }
 
 impl Declarations {
     pub fn new() -> Declarations {
-        Declarations {declr: vec![HashMap::new()], set: HashSet::new()}
+        Declarations {declr: vec![HashMap::new()]}
     }
     pub fn global() -> Declarations {
         let mut dec = Declarations::new();
@@ -187,11 +187,9 @@ impl Declarations {
         dec
     }
     pub fn add(&mut self, k:Symbol, v:Value) -> bool {
-        if self.set.contains(&k) { return false; }
         self.declr.last_mut()
             .expect("Declarations Vector is empty")
-            .insert(k.clone(), v);
-        self.set.insert(k);
+            .insert(k, v);
         return true;
     }
     pub fn get(&self, s:&Symbol) -> Option<Value> {
