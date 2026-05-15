@@ -24,7 +24,7 @@ pub enum Expression {
     ProcedureCall(ProcedureCall),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     Number(Number),
     Symbol(Symbol),

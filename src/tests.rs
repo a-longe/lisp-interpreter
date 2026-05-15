@@ -3,6 +3,7 @@
 use rust_decimal_macros::dec;
 
 use crate::ast::*;
+use crate::macros::*;
 use crate::parse::*;
 use crate::funcs::*;
 use std::collections::HashMap;
@@ -325,3 +326,12 @@ fn lambda_closure_capture_basic() {
     assert_eq!(ASTNode::from("((lambda x ((lambda null x) 0)) 30)").execute(&mut Declarations::global()),
     Value::Number(Number { value: dec!(30) }));
 }
+
+#[test]
+fn macro_expand_from_globals_let() {
+    let mut node = ASTNode::from("(let ((x 30)) x)");
+    node.expand(&MacroDeclarations::global());
+    assert_eq!(node.execute(&mut Declarations::global()),
+    Value::Number(Number { value: dec!(30) }));
+}
+
